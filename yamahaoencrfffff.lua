@@ -42,6 +42,16 @@ local function createBox()
     return b
 end
 
+-- Crear nombre del tag
+local function createNameTag()
+    local t = Drawing.new("Text")
+    t.Size = 16
+    t.Center = true
+    t.Outline = true
+    t.Transparency = 1
+    return t
+end
+
 -- Actualizar visuales del ESP (cajas)
 local function updateBox(box, corners, color)
     local edges = {
@@ -100,23 +110,35 @@ local function updateESP(char, data, dist)
     data.tag.Visible = visible
 end
 
+-- Variable para controlar si el ESP está habilitado o no
+local toggleESP = false
+
 -- Ciclo de actualización de ESP
-RunService.RenderStepped:Connect(function()
+RunService.Heartbeat:Connect(function()
     local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
     if not root then return end
 
-    -- Actualizamos el ESP solo para los personajes dentro del rango
-    for char, data in pairs(ESPCache) do
-        local targetRoot = char:FindFirstChild("HumanoidRootPart")
-        if targetRoot then
-            local dist = (targetRoot.Position - root.Position).Magnitude
-            -- Verificamos que la distancia esté dentro del máximo rango
-            if dist <= maxDistance then
-                updateESP(char, data, dist)
-            else
-                for _, l in ipairs(data.box) do l.Visible = false end
-                if data.tag then data.tag.Visible = false end
+    -- Si el toggle está activado, actualizamos el ESP
+    if toggleESP then
+        -- Actualizamos el ESP solo para los personajes dentro del rango
+        for char, data in pairs(ESPCache) do
+            local targetRoot = char:FindFirstChild("HumanoidRootPart")
+            if targetRoot then
+                local dist = (targetRoot.Position - root.Position).Magnitude
+                -- Verificamos que la distancia esté dentro del máximo rango
+                if dist <= maxDistance then
+                    updateESP(char, data, dist)
+                else
+                    for _, l in ipairs(data.box) do l.Visible = false end
+                    if data.tag then data.tag.Visible = false end
+                end
             end
+        end
+    else
+        -- Si el toggle está desactivado, ocultamos todos los ESPs
+        for _, data in pairs(ESPCache) do
+            for _, l in ipairs(data.box) do l.Visible = false end
+            if data.tag then data.tag.Visible = false end
         end
     end
 end)
@@ -170,6 +192,17 @@ local Slider = MainTab:CreateSlider({
     end,
 })
 
+-- Toggle para activar/desactivar los visuals de ESP
+local Toggle = MainTab:CreateToggle({
+    Name = "Habilitar ESP",
+    CurrentValue = false,
+    Flag = "ESP_Toggle",  -- Flag único para guardar la configuración
+    Callback = function(Value)
+        toggleESP = Value -- Actualiza el estado del toggle
+    end,
+})
+
+-- Inicializar la configuración
 Rayfield:LoadConfiguration()
 
 -- Ciclo para escanear personajes y crear ESP
@@ -179,11 +212,7 @@ task.spawn(function()
             if char:IsA("Model") and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Humanoid") then
                 if not ESPCache[char] then
                     local box = createBox()
-                    local tag = Drawing.new("Text")
-                    tag.Size = 16
-                    tag.Center = true
-                    tag.Outline = true
-                    tag.Transparency = 1
+                    local tag = createNameTag()
                     ESPCache[char] = {box = box, tag = tag}
                 end
             end
@@ -198,6 +227,6 @@ task.spawn(function()
             end
         end
 
-        task.wait(0.2)
+        task.wait(0.2) -- Reduce la frecuencia de actualización
     end
 end)
