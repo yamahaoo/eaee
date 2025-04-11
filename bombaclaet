@@ -1,0 +1,233 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+local UserInputService = game:GetService("UserInputService")
+
+-- Variable para la distancia de renderizado (valor inicial: 500 studs)
+local renderDistance = 500
+
+-- Función para crear un Highlight (contorno)
+local function createHighlight(character, color)
+    local highlight = Instance.new("Highlight")
+    highlight.Adornee = character
+    highlight.FillColor = color
+    highlight.OutlineColor = color
+    highlight.FillTransparency = 0.8
+    highlight.OutlineTransparency = 0
+    highlight.Parent = character
+    return highlight
+end
+
+-- Función para crear un nametag
+local function createNametag(character, text, color)
+    local head = character:FindFirstChild("Head")
+    if head then
+        local billboard = Instance.new("BillboardGui")
+        billboard.Adornee = head
+        billboard.Size = UDim2.new(0, 100, 0, 40)
+        billboard.StudsOffset = Vector3.new(0, 3, 0)
+        billboard.AlwaysOnTop = true
+        
+        local textLabel = Instance.new("TextLabel")
+        textLabel.Size = UDim2.new(1, 0, 1, 0)
+        textLabel.BackgroundTransparency = 1
+        textLabel.Text = text
+        textLabel.TextColor3 = color
+        textLabel.TextScaled = true
+        textLabel.Parent = billboard
+        
+        billboard.Parent = head
+        return billboard
+    end
+end
+
+-- Función para verificar si es NPC
+local function isNPC(character)
+    return not Players:GetPlayerFromCharacter(character)
+end
+
+-- Función para verificar si el personaje tiene un tool
+local function hasTool(character)
+    for _, child in pairs(character:GetChildren()) do
+        if child:IsA("Tool") then
+            return true
+        end
+    end
+    return false
+end
+
+-- Función para crear la GUI del slider
+local function createSliderGui()
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+    screenGui.Name = "ESPSliderGui"
+    
+    -- Frame principal
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0, 200, 0, 100)
+    frame.Position = UDim2.new(0, 10, 0, 10)
+    frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    frame.BorderSizePixel = 0
+    frame.Parent = screenGui
+    
+    -- Esquinas redondeadas
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 10)
+    corner.Parent = frame
+    
+    -- Etiqueta de título
+    local titleLabel = Instance.new("TextLabel")
+    titleLabel.Size = UDim2.new(1, 0, 0, 30)
+    titleLabel.Position = UDim2.new(0, 0, 0, 5)
+    titleLabel.BackgroundTransparency = 1
+    titleLabel.Text = "ESP Render Distance"
+    titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    titleLabel.TextScaled = true
+    titleLabel.Parent = frame
+    
+    -- Frame del slider
+    local sliderFrame = Instance.new("Frame")
+    sliderFrame.Size = UDim2.new(0.9, 0, 0, 10)
+    sliderFrame.Position = UDim2.new(0.05, 0, 0, 50)
+    sliderFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    sliderFrame.Parent = frame
+    
+    local sliderCorner = Instance.new("UICorner")
+    sliderCorner.CornerRadius = UDim.new(0, 5)
+    sliderCorner.Parent = sliderFrame
+    
+    -- Barra de progreso del slider
+    local sliderBar = Instance.new("Frame")
+    sliderBar.Size = UDim2.new(0.5, 0, 1, 0)
+    sliderBar.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+    sliderBar.BorderSizePixel = 0
+    sliderBar.Parent = sliderFrame
+    
+    local barCorner = Instance.new("UICorner")
+    barCorner.CornerRadius = UDim.new(0, 5)
+    barCorner.Parent = sliderBar
+    
+    -- Etiqueta de distancia
+    local distanceLabel = Instance.new("TextLabel")
+    distanceLabel.Size = UDim2.new(1, 0, 0, 20)
+    distanceLabel.Position = UDim2.new(0, 0, 0, 70)
+    distanceLabel.BackgroundTransparency = 1
+    distanceLabel.Text = "Distance: 500 studs"
+    distanceLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    distanceLabel.TextScaled = true
+    distanceLabel.Parent = frame
+    
+    -- Lógica del slider
+    local dragging = false
+    
+    local function updateSlider(input)
+        local relativeX = math.clamp((input.Position.X - sliderFrame.AbsolutePosition.X) / sliderFrame.AbsoluteSize.X, 0, 1)
+        sliderBar.Size = UDim2.new(relativeX, 0, 1, 0)
+        renderDistance = math.floor(50 + (1000 - 50) * relativeX)
+        distanceLabel.Text = "Distance: " .. renderDistance .. " studs"
+    end
+    
+    sliderFrame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            updateSlider(input)
+        end
+    end)
+    
+    sliderFrame.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            updateSlider(input)
+        end
+    end)
+end
+
+-- Función para actualizar el ESP
+local function updateESP()
+    if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then return end
+    local localPosition = LocalPlayer.Character.HumanoidRootPart.Position
+    
+    for _, player in pairs(Players:GetPlayers()) do
+        if player.Character then
+            local character = player.Character
+            local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+            if humanoidRootPart then
+                -- Verificar distancia
+                local distance = (localPosition - humanoidRootPart.Position).Magnitude
+                if distance <= renderDistance then
+                    -- Determinar color según condiciones
+                    local highlightColor = Color3.new(1, 1, 1) -- Blanco por defecto
+                    if hasTool(character) then
+                        highlightColor = Color3.new(1, 0, 0) -- Rojo si tiene tool
+                    elseif isNPC(character) then
+                        highlightColor = Color3.new(0.5, 0, 0.5) -- Morado si es NPC
+                    end
+                    
+                    -- Crear o actualizar Highlight
+                    local existingHighlight = character:FindFirstChild("ESPHighlight")
+                    if not existingHighlight then
+                        local highlight = createHighlight(character, highlightColor)
+                        highlight.Name = "ESPHighlight"
+                    else
+                        existingHighlight.FillColor = highlightColor
+                        existingHighlight.OutlineColor = highlightColor
+                    end
+                    
+                    -- Crear o actualizar nametag
+                    local existingNametag = character:FindFirstChild("Head") and character.Head:FindFirstChild("ESPNametag")
+                    if not existingNametag then
+                        createNametag(character, player.Name, highlightColor).Name = "ESPNametag"
+                    end
+                else
+                    -- Eliminar Highlight y nametag si está fuera de rango
+                    local highlight = character:FindFirstChild("ESPHighlight")
+                    if highlight then highlight:Destroy() end
+                    local head = character:FindFirstChild("Head")
+                    if head then
+                        local nametag = head:FindFirstChild("ESPNametag")
+                        if nametag then nametag:Destroy() end
+                    end
+                end
+            end
+        end
+    end
+    
+    -- Limpiar ESP de personajes que ya no existen
+    for _, character in pairs(workspace:GetDescendants()) do
+        if character:IsA("Model") and character:FindFirstChild("HumanoidRootPart") then
+            local player = Players:GetPlayerFromCharacter(character)
+            if not player then
+                local highlight = character:FindFirstChild("ESPHighlight")
+                if highlight then highlight:Destroy() end
+                local head = character:FindFirstChild("Head")
+                if head then
+                    local nametag = head:FindFirstChild("ESPNametag")
+                    if nametag then nametag:Destroy() end
+                end
+            end
+        end
+    end
+end
+
+-- Crear la GUI del slider al iniciar
+createSliderGui()
+
+-- Actualizar ESP continuamente
+RunService.RenderStepped:Connect(updateESP)
+
+-- Manejar nuevos jugadores
+Players.PlayerAdded:Connect(function(player)
+    player.CharacterAdded:Connect(function(character)
+        updateESP()
+    end)
+end)
+
+-- Limpiar al salir
+Players.PlayerRemoving:Connect(function(player)
+    updateESP()
+end)
