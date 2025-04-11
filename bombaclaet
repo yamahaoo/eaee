@@ -57,72 +57,6 @@ local function hasTool(character)
     return false
 end
 
--- Crear GUI del slider
-local function createSliderGui()
-    local screenGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
-    screenGui.Name = "ESPSliderGui"
-    
-    local frame = Instance.new("Frame", screenGui)
-    frame.Size = UDim2.new(0, 200, 0, 100)
-    frame.Position = UDim2.new(0, 10, 0, 10)
-    frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    frame.BorderSizePixel = 0
-    local corner = Instance.new("UICorner", frame)
-    corner.CornerRadius = UDim.new(0, 10)
-
-    local titleLabel = Instance.new("TextLabel", frame)
-    titleLabel.Size = UDim2.new(1, 0, 0, 30)
-    titleLabel.Text = "ESP Render Distance"
-    titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    titleLabel.BackgroundTransparency = 1
-    titleLabel.TextScaled = true
-
-    local sliderFrame = Instance.new("Frame", frame)
-    sliderFrame.Size = UDim2.new(0.9, 0, 0, 10)
-    sliderFrame.Position = UDim2.new(0.05, 0, 0, 50)
-    sliderFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-    Instance.new("UICorner", sliderFrame).CornerRadius = UDim.new(0, 5)
-
-    local sliderBar = Instance.new("Frame", sliderFrame)
-    sliderBar.Size = UDim2.new(0.5, 0, 1, 0)
-    sliderBar.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
-    sliderBar.BorderSizePixel = 0
-    Instance.new("UICorner", sliderBar).CornerRadius = UDim.new(0, 5)
-
-    local distanceLabel = Instance.new("TextLabel", frame)
-    distanceLabel.Size = UDim2.new(1, 0, 0, 20)
-    distanceLabel.Position = UDim2.new(0, 0, 0, 70)
-    distanceLabel.Text = "Distance: 500 studs"
-    distanceLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    distanceLabel.BackgroundTransparency = 1
-    distanceLabel.TextScaled = true
-
-    local dragging = false
-    local function updateSlider(input)
-        local relativeX = math.clamp((input.Position.X - sliderFrame.AbsolutePosition.X) / sliderFrame.AbsoluteSize.X, 0, 1)
-        sliderBar.Size = UDim2.new(relativeX, 0, 1, 0)
-        renderDistance = math.floor(50 + (1000 - 50) * relativeX)
-        distanceLabel.Text = "Distance: " .. renderDistance .. " studs"
-    end
-
-    sliderFrame.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
-            updateSlider(input)
-        end
-    end)
-    sliderFrame.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = false
-        end
-    end)
-    UserInputService.InputChanged:Connect(function(input)
-        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-            updateSlider(input)
-        end
-    end)
-end
-
 -- Función optimizada para actualizar el ESP
 local function updateESP()
     local localCharacter = LocalPlayer.Character
@@ -168,6 +102,10 @@ local function updateESP()
     end
 end
 
--- Crear GUI y conectar actualización
-createSliderGui()
-RunService.RenderStepped:Connect(updateESP)
+-- Actualización cada 0.2s en un bucle separado
+task.spawn(function()
+    while true do
+        updateESP()
+        task.wait(0.2) -- Espera 0.2 segundos antes de la siguiente actualización
+    end
+end)
